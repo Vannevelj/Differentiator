@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 
@@ -7,42 +9,8 @@ namespace Differentiator.Test
     public class UnitTests
     {
         [Theory]
-        [InlineData(500, 10.0, 1)]
-        [InlineData(500, 10.0, 2)]
-        [InlineData(500, 10.0, 3)]
-        [InlineData(500, 10.0, 4)]
-        [InlineData(500, 10.0, 100)]
-        [InlineData(500, 10.0, 333)]
-        [InlineData(500, 10.0, 999)]
-        [InlineData(1000, 7.5, 1)]
-        [InlineData(1000, 7.5, 2)]
-        [InlineData(1000, 7.5, 3)]
-        [InlineData(1000, 7.5, 4)]
-        [InlineData(1000, 7.5, 100)]
-        [InlineData(1000, 7.5, 333)]
-        [InlineData(1000, 7.5, 999)]
-        [InlineData(10000, 2.5, 1)]
-        [InlineData(10000, 2.5, 2)]
-        [InlineData(10000, 2.5, 3)]
-        [InlineData(10000, 2.5, 4)]
-        [InlineData(10000, 2.5, 100)]
-        [InlineData(10000, 2.5, 333)]
-        [InlineData(10000, 2.5, 999)]
-        [InlineData(100000, 1.0, 1)]
-        [InlineData(100000, 1.0, 2)]
-        [InlineData(100000, 1.0, 3)]
-        [InlineData(100000, 1.0, 4)]
-        [InlineData(100000, 1.0, 100)]
-        [InlineData(100000, 1.0, 333)]
-        [InlineData(100000, 1.0, 999)]
-        [InlineData(1000000, 0.75, 1)]
-        [InlineData(1000000, 0.75, 2)]
-        [InlineData(1000000, 0.75, 3)]
-        [InlineData(1000000, 0.75, 4)]
-        [InlineData(1000000, 0.75, 100)]
-        [InlineData(1000000, 0.75, 333)]
-        [InlineData(1000000, 0.75, 999)]
-        public void IsInVariant_IsEquallyDistributed(int numberOfUsers, double percentageDifferenceAllowed, int experimentId)
+        [ClassData(typeof(DistributionTestData))]
+        public void IsInVariant_IsEquallyDistributed(int numberOfUsers, int experimentId)
         {
             var service = new ExperimentService();
 
@@ -65,78 +33,21 @@ namespace Differentiator.Test
 
             var diff = (double)variant - control;
             var percentage = Math.Abs((diff / control) * 100);
-
-            Assert.True(percentage < percentageDifferenceAllowed, $"Control: {control}\tVariant:{variant}\tPercentage{percentage}\tExperimentId:{experimentId}");
+            
+            Assert.True(percentage < 0.5, $"Control: {control}\tVariant:{variant}\tPercentage{percentage}\tExperimentId:{experimentId}");
         }
 
         [Theory]
-        [InlineData(1)]
-        [InlineData(2)]
-        [InlineData(3)]
-        [InlineData(4)]
-        [InlineData(5)]
-        [InlineData(6)]
-        [InlineData(7)]
-        [InlineData(8)]
-        [InlineData(9)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(250)]
-        [InlineData(333)]
-        [InlineData(999)]
-        public void IsInVariant_ReturnsSameValueForEachInvocation(int experimentId)
+        [ClassData(typeof(InvocationTestData))]
+        public void IsInVariant_ReturnsSameValueForEachInvocation(int experimentId, int userId)
         {
             var iterations = 1000;
-            var service = new ExperimentService();
-
-            for (var userId = 1; userId < 100; userId++)
-            {
-                var control = 0;
-                var variant = 0;
-
-                for (var i = 0; i < iterations; i++)
-                {
-                    var isInVariant = service.IsInVariant(experimentId, userId.ToString());
-                    if (isInVariant)
-                    {
-                        variant++;
-                    }
-                    else
-                    {
-                        control++;
-                    }
-                }
-
-                Assert.False(control > 0 && variant > 0, $"Control: {control}\tVariant: {variant}\tExperimentID: {experimentId}\tUserID: {userId}");
-            }
-        }
-
-        [Theory]
-        [InlineData(1)]
-        [InlineData(2)]
-        [InlineData(3)]
-        [InlineData(4)]
-        [InlineData(5)]
-        [InlineData(6)]
-        [InlineData(7)]
-        [InlineData(8)]
-        [InlineData(9)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(100000)]
-        [InlineData(56789)]
-        [InlineData(32)]
-        [InlineData(9812345)]
-        [InlineData(5000000)]
-        public void IsInVariant_GivesUsersBothVariants(int userId)
-        {
-            var iterations = 100;
             var service = new ExperimentService();
 
             var control = 0;
             var variant = 0;
 
-            for (var experimentId = 1; experimentId < iterations + 1; experimentId++)
+            for (var i = 0; i < iterations; i++)
             {
                 var isInVariant = service.IsInVariant(experimentId, userId.ToString());
                 if (isInVariant)
@@ -149,7 +60,94 @@ namespace Differentiator.Test
                 }
             }
 
-            Assert.True(control > 30 && variant > 30, $"Control: {control}\tVariant: {variant}\tUserID: {userId}");
+            Assert.False(control > 0 && variant > 0, $"Control: {control}\tVariant: {variant}\tExperimentID: {experimentId}\tUserID: {userId}");
+        }
+
+        [Theory]
+        [ClassData(typeof(VariantTestData))]
+        public void IsInVariant_GivesUsersBothVariants(int userId, List<int> experimentIds)
+        {
+            var service = new ExperimentService();
+
+            var control = 0;
+            var variant = 0;
+
+            foreach(var id in experimentIds)
+            {
+                var isInVariant = service.IsInVariant(id, userId.ToString());
+                if (isInVariant)
+                {
+                    variant++;
+                }
+                else
+                {
+                    control++;
+                }
+            }
+
+            var minimumParticipations = (int) (experimentIds.Count * 0.45);
+
+            Assert.True(control > minimumParticipations && variant > minimumParticipations, $"Control: {control}\tVariant: {variant}\tUserID: {userId}");
+        }
+    }
+
+    public class DistributionTestData : IEnumerable<object[]>
+    {
+        private Random _random = new Random(32);
+
+        public IEnumerator GetEnumerator() => GetEnumerator();
+
+        IEnumerator<object[]> IEnumerable<object[]>.GetEnumerator()
+        {
+            for (var experimentId = 1; experimentId < 100; experimentId++)
+            {
+                var experiment = _random.Next(1, 1000);
+                for (var numberOfUsers = 1000; numberOfUsers < 100_000; numberOfUsers += 1000)
+                {
+                    yield return new object[] { numberOfUsers, experiment };
+                }                
+            }
+        }
+    }
+
+    public class VariantTestData : IEnumerable<object[]>
+    {
+        private Random _random = new Random(32);
+
+        public IEnumerator GetEnumerator() => GetEnumerator();
+
+        IEnumerator<object[]> IEnumerable<object[]>.GetEnumerator()
+        {
+            for (var i = 1; i < 100; i++)
+            {
+                var userId = _random.Next(1, 200000);
+                var experimentIds = new List<int>();
+
+                for (var j = 1; j < 1000; j++)
+                {
+                    experimentIds.Add(_random.Next(1, 500));
+                }
+
+                yield return new object[] { userId, experimentIds };
+            }
+        }
+    }
+
+    public class InvocationTestData : IEnumerable<object[]>
+    {
+        private Random _random = new Random(32);
+
+        public IEnumerator GetEnumerator() => GetEnumerator();
+
+        IEnumerator<object[]> IEnumerable<object[]>.GetEnumerator()
+        {
+            for (var i = 1; i < 100; i++)
+            {
+                for (var experimentId = 1; experimentId < 100; experimentId++)
+                {
+                    yield return new object[] { experimentId, _random.Next(1, 100_000) };
+                }                
+            }
         }
     }
 }

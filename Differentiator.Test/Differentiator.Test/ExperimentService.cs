@@ -18,8 +18,9 @@ namespace Differentiator.Test
 
         private long GetParticipationHash(int experimentId, string differentiator)
         {
-            var hash = new Random(differentiator.GetHashCode()).Next();
-            hash = new Random(hash | experimentId).Next();
+            var realDifferentiator = int.Parse(differentiator);
+
+            var hash = experimentId ^ realDifferentiator;
 
             return hash;
         }
